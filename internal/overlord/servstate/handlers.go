@@ -312,7 +312,7 @@ func logError(err error) {
 }
 
 // startInternal is an internal helper used to actually start (or restart) the
-// command. It assumes the caller has ensures the service is in a valid state,
+// command. It assumes the caller has ensured the service is in a valid state,
 // and it sets s.cmd and other relevant fields.
 func (s *serviceData) startInternal() error {
 	args, err := shlex.Split(s.config.Command)
