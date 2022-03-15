@@ -15,6 +15,8 @@
 package servicelog
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -50,6 +52,77 @@ func NewFormatWriter(dest io.Writer, serviceName string) io.Writer {
 		dest:           dest,
 		writeTimestamp: true,
 	}
+}
+
+type timeTrimWriter struct {
+	dest     io.Writer
+	format   string
+	buf      []byte
+	postTime bool
+}
+
+func NewTimeTrimWriter(dest io.Writer, format string) io.Writer {
+	return &timeTrimWriter{
+		format: format,
+		dest:   dest,
+	}
+}
+
+func (w *timeTrimWriter) writePreTime(p []byte) (remainder []byte, nn int, ee error) {
+	w.buf = append(w.buf, p...)
+	_, n, err := parseTimePrefix(w.buf, w.format)
+	if err != nil {
+		// haven't received entire time prefix yet - wait for more
+		return nil, 0, nil
+	}
+
+	remainder = w.buf[n:]
+	w.buf = w.buf[:0]
+	return remainder, n, nil
+}
+
+func (w *timeTrimWriter) Write(p []byte) (nn int, ee error) {
+	written := 0
+	for len(p) > 0 {
+		if !w.postTime {
+			remainder, n, err := w.writePreTime(p)
+			written += n
+			if err != nil {
+				return written, err
+			}
+			w.postTime = n > 0
+			p = remainder
+		}
+
+		length := 0
+		for i := 0; i < len(p); i++ {
+			length++
+			if p[i] == '\n' {
+				break
+			}
+		}
+
+		write := p[:length]
+		n, err := w.dest.Write(write)
+		w.postTime = !bytes.ContainsRune(write, '\n')
+		written += n
+		p = p[n:]
+		if err != nil {
+			return written, err
+		}
+	}
+	return written, nil
+}
+
+func parseTimePrefix(buf []byte, format string) (time.Time, int, error) {
+	for n := 0; n <= len(buf); n++ {
+		t, err := time.Parse(format, string(buf[:n]))
+		if err != nil {
+			continue
+		}
+		return t, n, nil
+	}
+	return time.Time{}, 0, errors.New("no time prefix found")
 }
 
 func (f *formatter) Write(p []byte) (nn int, ee error) {
