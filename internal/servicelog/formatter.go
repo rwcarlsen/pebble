@@ -16,8 +16,8 @@ package servicelog
 
 import (
 	"bytes"
-	"errors"
 	"io"
+	"strings"
 	"sync"
 	"time"
 )
@@ -70,7 +70,7 @@ func NewTimeTrimWriter(dest io.Writer, format string) io.Writer {
 
 func (w *timeTrimWriter) writePreTime(p []byte) (remainder []byte, nn int, ee error) {
 	w.buf = append(w.buf, p...)
-	_, n, err := parseTimePrefix(w.buf, w.format)
+	n, err := parseTimePrefix(w.buf, w.format)
 	if err != nil {
 		// haven't received entire time prefix yet - wait for more
 		return nil, 0, nil
@@ -114,15 +114,20 @@ func (w *timeTrimWriter) Write(p []byte) (nn int, ee error) {
 	return written, nil
 }
 
-func parseTimePrefix(buf []byte, format string) (time.Time, int, error) {
-	for n := 0; n <= len(buf); n++ {
-		t, err := time.Parse(format, string(buf[:n]))
-		if err != nil {
-			continue
+func parseTimePrefix(buf []byte, format string) (int, error) {
+	_, err := time.Parse(format, string(buf))
+	if err != nil {
+		msg := err.Error()
+		marker := "extra text: \""
+		if index := strings.Index(msg, marker); index >= 0 {
+			tail := msg[index+len(marker) : len(msg)-1]
+			// the error message renders newlines as "\x0a" - undo this
+			tail = strings.Replace(tail, "\\x0a", "\n", -1)
+			return len(buf) - len(tail), nil
 		}
-		return t, n, nil
+		return 0, err
 	}
-	return time.Time{}, 0, errors.New("no time prefix found")
+	return len(buf), nil
 }
 
 func (f *formatter) Write(p []byte) (nn int, ee error) {

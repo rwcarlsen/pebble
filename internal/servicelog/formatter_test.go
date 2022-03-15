@@ -64,9 +64,9 @@ func (s *formatterSuite) TestTimeTrim(c *C) {
 	}
 
 	c.Assert(b.String(), Equals, fmt.Sprintf(`
- hello my name is joe
- and I work in a button factory
- this log entry is very old
+hello my name is joe
+and I work in a button factory
+this log entry is very old
 `[1:]))
 }
 
