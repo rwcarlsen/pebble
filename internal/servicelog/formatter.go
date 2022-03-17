@@ -79,10 +79,11 @@ func (w *trimWriter) Write(p []byte) (nn int, ee error) {
 	w.buf = append(w.buf, p...)
 	written := 0
 	for {
-		end := bytes.IndexRune(w.buf[pos:], '\n') + pos
+		end := bytes.IndexRune(w.buf[pos:], '\n')
 		if end == -1 {
 			return written, nil // wait for rest of line
 		}
+		end += pos
 		loc := w.re.FindIndex(w.buf[:end])
 		start := 0
 		if loc != nil && loc[0] == 0 {

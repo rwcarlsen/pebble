@@ -47,23 +47,36 @@ func (s *formatterSuite) TestFormat(c *C) {
 }
 
 func (s *formatterSuite) TestTrim(c *C) {
-	b := &bytes.Buffer{}
-	w, err := servicelog.NewTrimWriter(b, "[0-9]{1,2}/[0-9]{1,2}/[0-9]{4} +")
-	if err != nil {
-		c.Fatal(err)
-	}
+	raw := `
+3/4/3005 hello my name is joe
+4/5/4200 and I work in a button factory
+1/1/0033 this log entry is very old
+and dates in the middle 1/1/0033 are kept
+`[1:]
 
-	fmt.Fprintln(w, "3/4/3005 hello my name is joe")
-	fmt.Fprintln(w, "4/5/4200 and I work in a button factory")
-	fmt.Fprintln(w, "1/1/0033 this log entry is very old")
-	fmt.Fprintln(w, "and dates in the middle 1/1/0033 are kept")
+	chunkSizes := []int{1, 2, 3, 4, 5, 6, 7, 11, 13, 27, 100}
+	for _, size := range chunkSizes {
+		b := &bytes.Buffer{}
+		w, err := servicelog.NewTrimWriter(b, "[0-9]{1,2}/[0-9]{1,2}/[0-9]{4} +")
+		if err != nil {
+			c.Fatal(err)
+		}
+		c.Logf("Chunk size %v\n", size)
+		for pos := 0; pos < len(raw); pos += size {
+			end := pos + size
+			if end > len(raw) {
+				end = len(raw)
+			}
+			fmt.Fprint(w, raw[pos:end])
+		}
 
-	c.Assert(b.String(), Equals, fmt.Sprintf(`
+		c.Assert(b.String(), Equals, fmt.Sprintf(`
 hello my name is joe
 and I work in a button factory
 this log entry is very old
 and dates in the middle 1/1/0033 are kept
 `[1:]))
+	}
 }
 
 func (s *formatterSuite) TestFormatSingleWrite(c *C) {
