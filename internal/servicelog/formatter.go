@@ -73,7 +73,9 @@ func NewTrimWriter(dest io.Writer, regex string) (io.Writer, error) {
 }
 
 func (w *trimWriter) Write(p []byte) (nn int, ee error) {
+	// Buffered content has already been searched for newlines - track this.
 	pos := len(w.buf)
+
 	w.buf = append(w.buf, p...)
 	written := 0
 	for {
@@ -88,68 +90,18 @@ func (w *trimWriter) Write(p []byte) (nn int, ee error) {
 		}
 
 		write := w.buf[start : end+1]
-		n, err := w.dest.Write(write)
-		written += n
-		w.buf = w.buf[end+1:]
-		if err != nil {
-			return written, err
+		for len(write) > 0 {
+			n, err := w.dest.Write(write)
+			written += n
+			write = write[n:]
+			if err != nil {
+				return written, err
+			}
 		}
+		w.buf = w.buf[end+1:]
 		pos = 0
 	}
 	return written, nil
-}
-
-func (w *trimWriter) Write2(p []byte) (nn int, ee error) {
-	written := 0
-	for len(p) > 0 {
-		if !w.postTrim {
-			// The remainder is explicitly returned by findPrefix because the
-			// trimmed prefix may include buffered content from previous Write
-			// calls so we can't just infer the remainder from n and p.
-			remainder, n := w.findPrefix(p)
-			written += n // skipped bytes count as written
-			w.postTrim = n > 0
-			if n > 0 {
-				w.postTrim = true
-				p = remainder
-			}
-		}
-
-		length := bytes.IndexRune(p, '\n')
-		if !w.postTrim && length == -1 {
-			return written, nil // pre-trim with no line end - wait for more data
-		}
-		if length == -1 {
-			length = len(p) // post-trim with no line end - write entire buffer.
-		}
-
-		write := p[:length]
-		n, err := w.dest.Write(write)
-		w.postTrim = !bytes.ContainsRune(write, '\n')
-		written += n
-		p = p[n:]
-		if err != nil {
-			return written, err
-		}
-	}
-	return written, nil
-}
-
-func (w *trimWriter) findPrefix(p []byte) (remainder []byte, n int) {
-	w.buf = append(w.buf, p...)
-
-	loc := w.re.FindIndex(w.buf)
-	if loc == nil || loc[0] != 0 {
-		// Found no match.  Matches must start at the beginning of a line
-		return nil, 0
-	} else if loc[1] == len(w.buf)-1 {
-		// Match may be longer than current buffer content, wait for more
-		return nil, 0
-	}
-
-	remainder = w.buf[loc[1]:]
-	w.buf = w.buf[:0]
-	return remainder, loc[1] - loc[0]
 }
 
 func (f *formatter) Write(p []byte) (nn int, ee error) {
