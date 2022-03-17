@@ -350,6 +350,12 @@ func (s *serviceData) startInternal() error {
 		outputIterator = s.logs.HeadIterator(0)
 	}
 	logWriter := servicelog.NewFormatWriter(s.logs, s.config.Name)
+	if s.config.LogTrim != "" {
+		logWriter, err = servicelog.NewTrimWriter(logWriter, s.config.LogTrim)
+		if err != nil {
+			fmt.Errorf("invalid trim expression: %w", err)
+		}
+	}
 	s.cmd.Stdout = logWriter
 	s.cmd.Stderr = logWriter
 

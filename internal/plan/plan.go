@@ -65,6 +65,7 @@ type Service struct {
 	Startup     ServiceStartup `yaml:"startup,omitempty"`
 	Override    Override       `yaml:"override,omitempty"`
 	Command     string         `yaml:"command,omitempty"`
+	LogTrim     string         `yaml:"log-trim,omitempty"`
 
 	// Service dependencies
 	After    []string `yaml:"after,omitempty"`

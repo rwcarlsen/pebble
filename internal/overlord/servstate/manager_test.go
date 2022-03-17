@@ -79,7 +79,8 @@ services:
 
     test2:
         override: replace
-        command: /bin/sh -c "echo test2 | tee -a %s; sleep 300"
+        command: /bin/sh -c "echo prefix-to-trim   test2 | tee -a %s; sleep 300"
+        log-trim: prefix.*trim +
 `
 
 var planLayer2 = `
@@ -505,7 +506,8 @@ services:
             - test2
     test2:
         override: replace
-        command: /bin/sh -c "echo test2 | tee -a %s; sleep 300"
+        command: /bin/sh -c "echo prefix-to-trim   test2 | tee -a %s; sleep 300"
+        log-trim: prefix.*trim +
     test3:
         override: replace
         command: some-bad-command
