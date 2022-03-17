@@ -46,27 +46,23 @@ func (s *formatterSuite) TestFormat(c *C) {
 `[1:], timeFormatRegex))
 }
 
-func (s *formatterSuite) TestTimeTrim(c *C) {
+func (s *formatterSuite) TestTrim(c *C) {
 	b := &bytes.Buffer{}
-	w := servicelog.NewTimeTrimWriter(b, "1/2/2006 ")
+	w, err := servicelog.NewTrimWriter(b, "[0-9]{1,2}/[0-9]{1,2}/[0-9]{4} +")
+	if err != nil {
+		c.Fatal(err)
+	}
 
-	_, err := fmt.Fprintln(w, "3/4/3005 hello my name is joe")
-	if err != nil {
-		c.Fatal(err)
-	}
-	_, err = fmt.Fprintln(w, "4/5/4200 and I work in a button factory")
-	if err != nil {
-		c.Fatal(err)
-	}
-	_, err = fmt.Fprintln(w, "1/1/0033 this log entry is very old")
-	if err != nil {
-		c.Fatal(err)
-	}
+	fmt.Fprintln(w, "3/4/3005 hello my name is joe")
+	fmt.Fprintln(w, "4/5/4200 and I work in a button factory")
+	fmt.Fprintln(w, "1/1/0033 this log entry is very old")
+	fmt.Fprintln(w, "and dates in the middle 1/1/0033 are kept")
 
 	c.Assert(b.String(), Equals, fmt.Sprintf(`
 hello my name is joe
 and I work in a button factory
 this log entry is very old
+and dates in the middle 1/1/0033 are kept
 `[1:]))
 }
 
